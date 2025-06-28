@@ -1,14 +1,13 @@
-# Use Java 17 image
-FROM eclipse-temurin:17-jdk
 
-# Set work directory
+# Use Maven to build and run the Spring Boot app
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
+COPY . .
+RUN mvn clean package -DskipTests
 
-# Copy your built JAR (adjust name if needed)
-COPY target/*.jar genAi-chatBot-0.0.1-SNAPSHOT.jar
-
-# Expose port (must be 8080 for Render)
+# Second stage - use smaller image
+FROM eclipse-temurin:17-jdk
+WORKDIR /app
+COPY --from=build /app/target/*.jar genAi-chatBot-0.0.1-SNAPSHOT.jar
 EXPOSE 8080
-
-# Run the jar
 ENTRYPOINT ["java", "-jar", "genAi-chatBot-0.0.1-SNAPSHOT.jar"]
