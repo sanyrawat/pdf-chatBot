@@ -59,9 +59,13 @@ public class PdfChatController {
 
 	@PostMapping("/upload")
 	public ResponseEntity<?> uploadPdf(@RequestParam("file") MultipartFile file) throws IOException {
-		String text = extractTextFromPdf(file.getBytes());
-		List<String> chunks = chunkText(text, 500);
-		InMemoryEmbeddingStore.storeChunks(chunks);
+		try {
+			String text = extractTextFromPdf(file.getBytes());
+			List<String> chunks = chunkText(text, 500);
+			InMemoryEmbeddingStore.storeChunks(chunks);
+		} catch (Exception e) {
+			return ResponseEntity.badRequest().body(e.getMessage());
+		}
 		return ResponseEntity.ok("PDF uploaded and processed.");
 	}
 
@@ -70,6 +74,9 @@ public class PdfChatController {
 		String userQuestion = payload.get("question");
 
 		List<String> topChunks = InMemoryEmbeddingStore.findTopRelevantChunks(userQuestion, 3);
+		if (topChunks == null || topChunks.isEmpty()) {
+	        return ResponseEntity.badRequest().body("⚠️ Please upload PDF before chat.");
+	    }
 		String context = String.join("", topChunks);
 		
 
