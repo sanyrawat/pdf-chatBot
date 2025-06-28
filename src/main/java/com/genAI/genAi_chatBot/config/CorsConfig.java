@@ -12,7 +12,7 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.addAllowedOrigin("http://localhost:3000"); // Frontend origin
+        config.addAllowedOrigin("https://chat-bot-pdf-seven.vercel.app"); // Frontend origin
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
 

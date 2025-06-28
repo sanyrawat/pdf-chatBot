@@ -18,7 +18,7 @@ import com.genAI.genAi_chatBot.util.InMemoryEmbeddingStore;
 import java.io.IOException;
 import java.util.*;
 
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://chat-bot-pdf-seven.vercel.app")
 @RestController
 @RequestMapping("/api/pdf-chat")
 public class PdfChatController {
