@@ -13,6 +13,8 @@ const App = () => {
   const [chatLog, setChatLog] = useState([]);
   const [loading, setLoading] = useState(false);
   const chatEndRef = useRef(null);
+  const [docId, setDocId] = useState(null);
+
 
   /* file upload */
   const handleFileChange = (e) => setFile(e.target.files[0]);
@@ -23,7 +25,9 @@ const App = () => {
     formData.append("file", file);
     try {
       //await axios.post(`http://localhost:8080/api/pdf-chat/upload`, formData);
-	 await axios.post(`${API_BASE}/api/pdf-chat/upload`, formData);
+	 //await axios.post(`${API_BASE}/api/pdf-chat/upload`, formData);
+	 const { data: returnedId } = await axios.post(`${API_BASE}/api/pdf-chat/upload`, formData);
+	 setDocId(returnedId);
       alert("PDF uploaded successfully.");
     } catch (error) {
       alert(error?.response?.data || "Failed to upload PDF.");
@@ -38,8 +42,11 @@ const App = () => {
     setChatLog((prev) => [...prev, userMsg]);
 
     try {
+		if (!docId) return alert("Upload a PDF first!");
+		const { data } = await axios.post(`${API_BASE}/api/pdf-chat/chat`, { question, documentId: docId });
+
       //const { data } = await axios.post(`http://localhost:8080/api/pdf-chat/chat`, { question });
-	  const { data } = await axios.post(`${API_BASE}/api/pdf-chat/chat`, { question });
+	  //const { data } = await axios.post(`${API_BASE}/api/pdf-chat/chat`, { question });
       const answerText = typeof data === "string" ? data : (data?.message || JSON.stringify(data));
       const botMsg = { role: "bot", content: answerText, time: new Date().toLocaleTimeString() };
       setChatLog((prev) => [...prev, botMsg]);

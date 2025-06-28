@@ -3,6 +3,7 @@ package com.genAI.genAi_chatBot.controller;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,16 +14,17 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.genAI.genAi_chatBot.util.InMemoryEmbeddingStore;
-
+import com.genAI.genAi_chatBot.service.PdfChunkStore;
 import java.io.IOException;
 import java.util.*;
 
-@CrossOrigin(origins = "https://chat-bot-pdf-seven.vercel.app")
+@CrossOrigin(origins = "https://pdf-chatbot-2-tq2q.onrender.com")
 @RestController
 @RequestMapping("/api/pdf-chat")
 public class PdfChatController {
 
+	@Autowired
+	private PdfChunkStore pdfChunkStore;
 	private final RestTemplate restTemplate = new RestTemplate();
 	private final ObjectMapper mapper = new ObjectMapper();
 
@@ -59,21 +61,26 @@ public class PdfChatController {
 
 	@PostMapping("/upload")
 	public ResponseEntity<?> uploadPdf(@RequestParam("file") MultipartFile file) throws IOException {
+		String docId = UUID.randomUUID().toString();
 		try {
 			String text = extractTextFromPdf(file.getBytes());
 			List<String> chunks = chunkText(text, 500);
-			InMemoryEmbeddingStore.storeChunks(chunks);
+			//InMemoryEmbeddingStore.storeChunks(chunks);
+			
+		    pdfChunkStore.save(docId, chunks);
 		} catch (Exception e) {
 			return ResponseEntity.badRequest().body(e.getMessage());
 		}
-		return ResponseEntity.ok("PDF uploaded and processed.");
+		//return ResponseEntity.ok("PDF uploaded and processed.");
+		return ResponseEntity.ok(docId);
 	}
 
 	@PostMapping("/chat")
 	public ResponseEntity<String> chatWithPdf(@RequestBody Map<String, String> payload) throws Exception {
 		String userQuestion = payload.get("question");
 
-		List<String> topChunks = InMemoryEmbeddingStore.findTopRelevantChunks(userQuestion, 3);
+		//List<String> topChunks = InMemoryEmbeddingStore.findTopRelevantChunks(userQuestion, 3);
+		List<String> topChunks = pdfChunkStore.load(payload.get("documentId"));
 		if (topChunks == null || topChunks.isEmpty()) {
 	        return ResponseEntity.badRequest().body("⚠️ Please upload PDF before chat.");
 	    }
