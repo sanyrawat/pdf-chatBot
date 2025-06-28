@@ -1,0 +1,11 @@
+{
+  "projects": [
+    {
+      "src": "pdf-chat-ui/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
+    }
+  ]
+}
