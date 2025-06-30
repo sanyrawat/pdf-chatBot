@@ -6,9 +6,8 @@ services:
   name: pdf-redis
   plan: free
   maxmemoryPolicy: allkeys-lru   # reasonable default
-  ipAllowList:
-        - source: 0.0.0.0/0
-          description: allow all Render services
+  enableInternalAuth: false 
+  ipAllowList: []    
 
 ###############################################################################
 # 2 ▸ Spring-Boot back-end  (API)
@@ -28,11 +27,11 @@ services:
     ############################################
     # Redis connection  (single URL is easiest)
     ############################################
-    - key: SPRING_REDIS_URL
-      fromService:
-        type: redis
-        name: pdf-redis
-        property: connectionString   # e.g. redis://default:<pwd>@host:port
+	- key: REDIS_HOST
+	  fromService: { type: redis, name: pdf-redis, property: host }
+	- key: REDIS_PORT
+	  fromService: { type: redis, name: pdf-redis, property: port }
+
 
 ###############################################################################
 # 3 ▸ React front-end  (static site)  ── OPTIONAL
