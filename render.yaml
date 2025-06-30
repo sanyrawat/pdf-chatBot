@@ -6,7 +6,9 @@ services:
   name: pdf-redis
   plan: free
   maxmemoryPolicy: allkeys-lru   # reasonable default
-  ipAllowList: []                # empty → only other Render services may connect
+  ipAllowList:
+        - source: 0.0.0.0/0
+          description: allow all Render services
 
 ###############################################################################
 # 2 ▸ Spring-Boot back-end  (API)
