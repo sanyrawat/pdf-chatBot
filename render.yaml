@@ -45,7 +45,7 @@ services:
   - type: web
     name: pdf-chat-ui
     runtime: static
-    repoPath: pdf-chat-ui          # folder containing package.json
+    repoPath: pdf-chat-ui          
     buildCommand: npm ci && npm run build
     staticPublishPath: build
     pullRequestPreviewsEnabled: false
