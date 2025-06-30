@@ -1,16 +1,13 @@
 services:
 ###############################################################################
-# 1 ▸ Redis  (internal, free plan, no auth)
+# 1 ▸ PostgreSQL (internal)
 ###############################################################################
-- type: redis
-  name: pdf-redis
+- type: psql
+  name: pdf-chat-db
   plan: free
-  maxmemoryPolicy: allkeys-lru        # reasonable default
-  enableInternalAuth: false           # 🔑 TURN OFF password
-  ipAllowList: []                     # empty → only Render services (same account/region)
 
 ###############################################################################
-# 2 ▸ Spring-Boot back-end (API)
+# 2 ▸ Spring Boot API
 ###############################################################################
 - type: web
   name: pdf-chatbot-api
@@ -18,36 +15,37 @@ services:
   autoDeploy: true
 
   envVars:
-    # ── OpenAI secret ───────────────────────────────────────────────────────
     - key: OPENAI_API_KEY
-      sync: false                      # add the value in the dashboard
+      sync: false
 
-    # ── Redis (internal host & port, no password) ──────────────────────────
-    - key: REDIS_HOST
-      fromService:
-        type: redis
-        name: pdf-redis
-        property: host                # ⇒ "pdf-redis"
-    - key: REDIS_PORT
-      fromService:
-        type: redis
-        name: pdf-redis
-        property: port                # ⇒ "6379"
+    # PostgreSQL connection
+    - key: SPRING_DATASOURCE_URL
+      fromDatabase:
+        name: pdf-chat-db
+        property: connectionString
+
+    - key: SPRING_DATASOURCE_USERNAME
+      fromDatabase:
+        name: pdf-chat-db
+        property: user
+
+    - key: SPRING_DATASOURCE_PASSWORD
+      fromDatabase:
+        name: pdf-chat-db
+        property: password
 
 ###############################################################################
-# 3 ▸ React front-end (static site)  ── OPTIONAL
+# 3 ▸ React UI
 ###############################################################################
 - type: web
   name: pdf-chat-ui
   runtime: static
   buildCommand: cd pdf-chat-ui && npm ci && npm run build
   staticPublishPath: pdf-chat-ui/build
-  pullRequestPreviewsEnabled: false
 
-  # Expose the API host:port to React if needed
   envVars:
     - key: REACT_APP_API_HOSTPORT
       fromService:
         type: web
         name: pdf-chatbot-api
-        property: hostport            # e.g. "pdf-chatbot-api:8080"
+        property: hostport
