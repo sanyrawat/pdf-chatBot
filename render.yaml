@@ -1,55 +1,73 @@
 services:
-  # ────────────────────────────────
-  # 1 ▸ Redis (internal, free plan)
-  # ────────────────────────────────
+  ##############################################################
+  # 1 ▸ Redis (internal - free plan)
+  ##############################################################
   - type: redis
-    name: pdf-redis
+    name: pdf-redis           # will become “pdf-redis:6379”
     plan: free
-    maxmemoryPolicy: allkeys-lru   # reasonable default
-    ipAllowList: []                # empty → only Render services may connect
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []           # empty ⇒ only other Render services may connect
 
-  # ────────────────────────────────
-  # 2 ▸ Spring-Boot backend
-  # ────────────────────────────────
+  ##############################################################
+  # 2 ▸ Spring-Boot Backend  (root of repo)
+  ##############################################################
   - type: web
     name: pdf-chatbot-api
-    env: docker                    # uses Dockerfile at repo root
-    plan: starter
-    autoDeploy: true               # redeploy on every git push
-    dockerfilePath: ./Dockerfile
+    runtime: java
+    repoPath: .               # backend lives in repo root
+    buildCommand: ./mvnw -ntp package -DskipTests
+    startCommand: >
+      java -jar target/*SNAPSHOT.jar
+    autoDeploy: true
+
     envVars:
-      # ── OpenAI secret ──────────────────────────────
-      - key: OPENAI_API_KEY        # fill in UI once, stays secret
-        sync: false
-      # ── Redis details injected from pdf-redis ─────
+      ########################################
+      # OpenAI secret – set once in dashboard
+      ########################################
+      - key: OPENAI_API_KEY
+        sync: false           # you’ll add the value in Render UI
+
+      ########################################
+      # Redis connection pieces
+      ########################################
       - key: REDIS_HOST
         fromService:
+          type: redis
           name: pdf-redis
           property: host
+
       - key: REDIS_PORT
         fromService:
+          type: redis
           name: pdf-redis
           property: port
+
       - key: REDIS_PASSWORD
         fromService:
+          type: redis
           name: pdf-redis
-          property: password
-      # Preferred single URL for Spring Boot 3.x+
+          property: password   # ← valid property
+
+      # ↓ Spring Boot 3.x prefers a single URL
       - key: SPRING_REDIS_URL
         value: "redis://default:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}"
+      # if you still use spring.redis.* keys, keep them in application.properties
 
-  # ────────────────────────────────
-  # 3 ▸ React front-end (optional)
-  #     Remove this block if you keep the UI on Vercel
-  # ────────────────────────────────
+  ##############################################################
+  # 3 ▸ React Front-end  (optional – delete block if staying on Vercel)
+  ##############################################################
   - type: web
     name: pdf-chat-ui
-    runtime: static
+    runtime: static           # Render’s “Static Site”
+    repoPath: pdf-chat-ui     # directory containing package.json
     buildCommand: npm ci && npm run build
-    staticPublishPath: build
+    staticPublishPath: build  # where CRA/Vite/Next exports pre-built files
     pullRequestPreviewsEnabled: false
+
     envVars:
+      # Front-end needs to know backend base URL
       - key: REACT_APP_API_BASE
         fromService:
+          type: web
           name: pdf-chatbot-api
           property: url
