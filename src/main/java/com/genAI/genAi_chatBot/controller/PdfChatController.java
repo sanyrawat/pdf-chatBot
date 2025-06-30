@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 
-@CrossOrigin(origins = "https://pdf-chatbot-2-tq2q.onrender.com")
+@CrossOrigin(origins = "https://chat-bot-mocoj2pkf-sanyrawats-projects.vercel.app")
 @RestController
 @RequestMapping("/api/pdf-chat")
 public class PdfChatController {
