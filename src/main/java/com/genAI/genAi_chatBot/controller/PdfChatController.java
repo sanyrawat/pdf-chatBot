@@ -69,7 +69,7 @@ public class PdfChatController {
             store.save(docId, chunks);                    // Redis
             return ResponseEntity.ok(docId);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Upload failed: " + e.getStackTrace());
+            return ResponseEntity.badRequest().body("Upload failed: " + e.getStackTrace().toString());
         }
     }
 
