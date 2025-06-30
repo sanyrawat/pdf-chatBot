@@ -1,16 +1,16 @@
 services:
 ###############################################################################
-# 1 ▸ Redis  (internal, free plan)
+# 1 ▸ Redis  (internal, free plan, no auth)
 ###############################################################################
 - type: redis
   name: pdf-redis
   plan: free
-  maxmemoryPolicy: allkeys-lru   # reasonable default
-  enableInternalAuth: false 
-  ipAllowList: []    
+  maxmemoryPolicy: allkeys-lru        # reasonable default
+  enableInternalAuth: false           # 🔑 TURN OFF password
+  ipAllowList: []                     # empty → only Render services (same account/region)
 
 ###############################################################################
-# 2 ▸ Spring-Boot back-end  (API)
+# 2 ▸ Spring-Boot back-end (API)
 ###############################################################################
 - type: web
   name: pdf-chatbot-api
@@ -18,23 +18,24 @@ services:
   autoDeploy: true
 
   envVars:
-    ############################################
-    # OpenAI secret  (add value once in the UI)
-    ############################################
+    # ── OpenAI secret ───────────────────────────────────────────────────────
     - key: OPENAI_API_KEY
-      sync: false                # you’ll paste the real key in the dashboard
+      sync: false                      # add the value in the dashboard
 
-    ############################################
-    # Redis connection  (single URL is easiest)
-    ############################################
-	- key: REDIS_HOST
-	  fromService: { type: redis, name: pdf-redis, property: host }
-	- key: REDIS_PORT
-	  fromService: { type: redis, name: pdf-redis, property: port }
-
+    # ── Redis (internal host & port, no password) ──────────────────────────
+    - key: REDIS_HOST
+      fromService:
+        type: redis
+        name: pdf-redis
+        property: host                # ⇒ "pdf-redis"
+    - key: REDIS_PORT
+      fromService:
+        type: redis
+        name: pdf-redis
+        property: port                # ⇒ "6379"
 
 ###############################################################################
-# 3 ▸ React front-end  (static site)  ── OPTIONAL
+# 3 ▸ React front-end (static site)  ── OPTIONAL
 ###############################################################################
 - type: web
   name: pdf-chat-ui
@@ -43,11 +44,10 @@ services:
   staticPublishPath: pdf-chat-ui/build
   pullRequestPreviewsEnabled: false
 
-  # If your React code needs to know the API origin you can expose HOSTPORT:
-  # REACT_APP_API_HOSTPORT → "pdf-chatbot-api:8080"
+  # Expose the API host:port to React if needed
   envVars:
     - key: REACT_APP_API_HOSTPORT
       fromService:
         type: web
         name: pdf-chatbot-api
-        property: hostport         # allowed: host | hostport | port
+        property: hostport            # e.g. "pdf-chatbot-api:8080"
