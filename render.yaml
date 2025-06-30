@@ -45,12 +45,10 @@ services:
   - type: web
     name: pdf-chat-ui
     runtime: static
-    repoPath: pdf-chat-ui          
     buildCommand: npm ci && npm run build
     staticPublishPath: build
     pullRequestPreviewsEnabled: false
     envVars:
-      # Front-end knows where to POST
       - key: REACT_APP_API_BASE
         fromService:
           name: pdf-chatbot-api
