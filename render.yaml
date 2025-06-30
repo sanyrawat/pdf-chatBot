@@ -1,71 +1,55 @@
 services:
-  ##############################################################
-  # 1 ▸ Redis (internal - free plan)
-  ##############################################################
-  - type: redis
-    name: pdf-redis           # will become “pdf-redis:6379”
-    plan: free
-    maxmemoryPolicy: allkeys-lru
-    ipAllowList: []           # empty ⇒ only other Render services may connect
+###############################################################################
+# 1 ▸ Redis  (internal, free plan)
+###############################################################################
+- type: redis
+  name: pdf-redis
+  plan: free
+  maxmemoryPolicy: allkeys-lru   # reasonable default
+  ipAllowList: []                # empty → only other Render services may connect
 
-  ##############################################################
-  # 2 ▸ Spring-Boot Backend  (root of repo)
-  ##############################################################
-  - type: web
-    name: pdf-chatbot-api
-    runtime: static
-    buildCommand: ./mvnw -ntp package -DskipTests
-    startCommand: >
-      java -jar target/*SNAPSHOT.jar
-    autoDeploy: true
+###############################################################################
+# 2 ▸ Spring-Boot back-end  (API)
+###############################################################################
+- type: web
+  name: pdf-chatbot-api
+  runtime: java
+  buildCommand: ./mvnw -ntp package -DskipTests
+  startCommand: >
+    java -jar target/*SNAPSHOT.jar
+  autoDeploy: true
 
-    envVars:
-      ########################################
-      # OpenAI secret – set once in dashboard
-      ########################################
-      - key: OPENAI_API_KEY
-        sync: false           # you’ll add the value in Render UI
+  envVars:
+    ############################################
+    # OpenAI secret  (add value once in the UI)
+    ############################################
+    - key: OPENAI_API_KEY
+      sync: false                # you’ll paste the real key in the dashboard
 
-      ########################################
-      # Redis connection pieces
-      ########################################
-      - key: REDIS_HOST
-        fromService:
-          type: redis
-          name: pdf-redis
-          property: host
+    ############################################
+    # Redis connection  (single URL is easiest)
+    ############################################
+    - key: SPRING_REDIS_URL
+      fromService:
+        type: redis
+        name: pdf-redis
+        property: connectionString   # e.g. redis://default:<pwd>@host:port
 
-      - key: REDIS_PORT
-        fromService:
-          type: redis
-          name: pdf-redis
-          property: port
+###############################################################################
+# 3 ▸ React front-end  (static site)  ── OPTIONAL
+###############################################################################
+- type: web
+  name: pdf-chat-ui
+  runtime: static
+  buildCommand: cd pdf-chat-ui && npm ci && npm run build
+  staticPublishPath: pdf-chat-ui/build
+  pullRequestPreviewsEnabled: false
 
-      - key: REDIS_PASSWORD
-        fromService:
-          type: redis
-          name: pdf-redis
-          property: password   # ← valid property
-
-      # ↓ Spring Boot 3.x prefers a single URL
-      - key: SPRING_REDIS_URL
-        value: "redis://default:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}"
-      # if you still use spring.redis.* keys, keep them in application.properties
-
-  ##############################################################
-  # 3 ▸ React Front-end  (optional – delete block if staying on Vercel)
-  ##############################################################
-  - type: web
-    name: pdf-chat-ui
-    runtime: static           # Render’s “Static Site”
-    buildCommand: cd pdf-chat-ui && npm ci && npm run build
-    staticPublishPath: pdf-chat-ui/build  # where CRA/Vite/Next exports pre-built files
-    pullRequestPreviewsEnabled: false
-
-    envVars:
-      # Front-end needs to know backend base URL
-      - key: REACT_APP_API_BASE
-        fromService:
-          type: web
-          name: pdf-chatbot-api
-          property: url
+  # If your React code needs to know the API origin you can expose HOSTPORT:
+  # REACT_APP_API_HOSTPORT → "pdf-chatbot-api:8080"
+  envVars:
+    - key: REACT_APP_API_HOSTPORT
+      fromService:
+        type: web
+        name: pdf-chatbot-api
+        property: hostport         # allowed: host | hostport | port
