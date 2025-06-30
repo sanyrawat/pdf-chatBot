@@ -58,8 +58,8 @@ services:
   - type: web
     name: pdf-chat-ui
     runtime: static           # Render’s “Static Site”
-    buildCommand: npm ci && npm run build
-    staticPublishPath: build  # where CRA/Vite/Next exports pre-built files
+    buildCommand: cd pdf-chat-ui && npm ci && npm run build
+    staticPublishPath: pdf-chat-ui/build  # where CRA/Vite/Next exports pre-built files
     pullRequestPreviewsEnabled: false
 
     envVars:
