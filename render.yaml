@@ -14,9 +14,6 @@ services:
 - type: web
   name: pdf-chatbot-api
   runtime: docker
-  buildCommand: ./mvnw -ntp package -DskipTests
-  startCommand: >
-    java -jar target/*SNAPSHOT.jar
   autoDeploy: true
 
   envVars:
