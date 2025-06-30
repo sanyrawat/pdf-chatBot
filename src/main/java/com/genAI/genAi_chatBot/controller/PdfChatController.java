@@ -1,21 +1,20 @@
 package com.genAI.genAi_chatBot.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.genAI.genAi_chatBot.service.PdfChunkStore;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.genAI.genAi_chatBot.service.PdfChunkStore;
+
 import java.io.IOException;
+import java.time.Duration;
 import java.util.*;
 
 @CrossOrigin(origins = "https://pdf-chatbot-2-tq2q.onrender.com")
@@ -24,87 +23,94 @@ import java.util.*;
 public class PdfChatController {
 
 	@Autowired
-	private PdfChunkStore pdfChunkStore;
-	private final RestTemplate restTemplate = new RestTemplate();
-	private final ObjectMapper mapper = new ObjectMapper();
+    private final PdfChunkStore store;
+    private final RestTemplate rest = new RestTemplate();
+    private final ObjectMapper mapper = new ObjectMapper();
 
-	@Value("${openai.api.key}")
-	private String openAiApiKey;
+    @Value("${openai.api.key}")
+    private String openAiApiKey;
 
-	public PdfChatController() {
-		// No WebClient needed with RestTemplate
-	}
+    public PdfChatController(PdfChunkStore store) {
+        this.store = store;
+    }
 
-	private List<String> chunkText(String text, int maxChunkSize) {
-		List<String> chunks = new ArrayList<>();
-		String[] sentences = text.split("(?<=[.!?]) ");
-		StringBuilder chunk = new StringBuilder();
-		for (String sentence : sentences) {
-			if (chunk.length() + sentence.length() > maxChunkSize) {
-				chunks.add(chunk.toString());
-				chunk = new StringBuilder();
-			}
-			chunk.append(sentence).append(" ");
-		}
-		if (!chunk.isEmpty()) {
-			chunks.add(chunk.toString());
-		}
-		return chunks;
-	}
+    /* ---------- helpers ---------- */
 
-	private String extractTextFromPdf(byte[] inputBytes) throws IOException {
-		try (PDDocument document = Loader.loadPDF(inputBytes)) {
-			PDFTextStripper stripper = new PDFTextStripper();
-			return stripper.getText(document);
-		}
-	}
+    private List<String> chunkText(String text, int max) {
+        List<String> out = new ArrayList<>();
+        String[] sentences = text.split("(?<=[.!?]) ");
+        StringBuilder buf = new StringBuilder();
+        for (String s : sentences) {
+            if (buf.length() + s.length() > max) {
+                out.add(buf.toString());
+                buf = new StringBuilder();
+            }
+            buf.append(s).append(' ');
+        }
+        if (!buf.isEmpty()) out.add(buf.toString());
+        return out;
+    }
 
-	@PostMapping("/upload")
-	public ResponseEntity<?> uploadPdf(@RequestParam("file") MultipartFile file) throws IOException {
-		String docId = UUID.randomUUID().toString();
-		try {
-			String text = extractTextFromPdf(file.getBytes());
-			List<String> chunks = chunkText(text, 500);
-			//InMemoryEmbeddingStore.storeChunks(chunks);
-			
-		    pdfChunkStore.save(docId, chunks);
-		} catch (Exception e) {
-			return ResponseEntity.badRequest().body(e.getMessage());
-		}
-		//return ResponseEntity.ok("PDF uploaded and processed.");
-		return ResponseEntity.ok(docId);
-	}
+    private String extractText(byte[] pdf) throws IOException {
+        try (PDDocument doc = Loader.loadPDF(pdf)) {
+            return new PDFTextStripper().getText(doc);
+        }
+    }
 
-	@PostMapping("/chat")
-	public ResponseEntity<String> chatWithPdf(@RequestBody Map<String, String> payload) throws Exception {
-		String userQuestion = payload.get("question");
+    /* ---------- endpoints ---------- */
 
-		//List<String> topChunks = InMemoryEmbeddingStore.findTopRelevantChunks(userQuestion, 3);
-		List<String> topChunks = pdfChunkStore.load(payload.get("documentId"));
-		if (topChunks == null || topChunks.isEmpty()) {
-	        return ResponseEntity.badRequest().body("⚠️ Please upload PDF before chat.");
-	    }
-		String context = String.join("", topChunks);
-		
+    /** Upload & return a documentId */
+    @PostMapping("/upload")
+    public ResponseEntity<String> upload(@RequestParam MultipartFile file) {
+        try {
+            String text = extractText(file.getBytes());
+            List<String> chunks = chunkText(text, 500);
+            String docId = UUID.randomUUID().toString();
+            store.save(docId, chunks);                    // Redis
+            return ResponseEntity.ok(docId);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Upload failed: " + e.getMessage());
+        }
+    }
 
-		String prompt = "Answer based only on this context:\n" + context + "\n\nQuestion: " + userQuestion;
+    /** DTO for chat */
+    public record ChatDTO(String documentId, String question) {}
 
-		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		headers.setBearerAuth(openAiApiKey);
+    @PostMapping("/chat")
+    public ResponseEntity<String> chat(@RequestBody ChatDTO dto) throws IOException {
+        if (dto.documentId() == null || dto.question() == null || dto.question().isBlank()) {
+            return ResponseEntity.badRequest().body("documentId and question are required.");
+        }
 
-		Map<String, Object> systemMessage = Map.of("role", "system", "content", "You are a helpful assistant.");
-		Map<String, Object> userMessage = Map.of("role", "user", "content", prompt);
+        List<String> chunks = store.load(dto.documentId());
+        if (chunks.isEmpty()) {
+            return ResponseEntity.badRequest().body("⚠️ Please upload PDF before chat.");
+        }
 
-		Map<String, Object> requestBody = Map.of("model", "gpt-4o-mini", "messages",
-				List.of(systemMessage, userMessage));
+        String context = String.join("\n",
+                chunks.stream().limit(3).toList());       // send at most 3 chunks
 
-		HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+        String prompt = "Answer based only on this context:\n" + context +
+                        "\n\nQuestion: " + dto.question();
 
-		ResponseEntity<JsonNode> response = restTemplate.postForEntity("https://api.openai.com/v1/chat/completions",
-				entity, JsonNode.class);
+        /* --- call OpenAI --- */
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(MediaType.APPLICATION_JSON);
+        h.setBearerAuth(openAiApiKey);
 
-		String answer = response.getBody().get("choices").get(0).get("message").get("content").asText();
-		return ResponseEntity.ok(answer);
-	}
+        Map<String, Object> body = Map.of(
+                "model", "gpt-4o-mini",
+                "messages", List.of(
+                        Map.of("role", "system", "content", "You are a helpful assistant."),
+                        Map.of("role", "user", "content", prompt))
+        );
+
+        JsonNode res = rest.postForEntity(
+                "https://api.openai.com/v1/chat/completions",
+                new HttpEntity<>(body, h),
+                JsonNode.class).getBody();
+
+        String answer = res.path("choices").get(0).path("message").path("content").asText();
+        return ResponseEntity.ok(answer);
+    }
 }

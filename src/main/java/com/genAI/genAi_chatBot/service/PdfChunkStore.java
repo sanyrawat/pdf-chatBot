@@ -15,21 +15,33 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class PdfChunkStore {
+
     private final StringRedisTemplate redis;
+    private final ObjectMapper mapper;           // reuse a single mapper
+    private static final Duration TTL = Duration.ofHours(2);
 
     @Autowired
-    public PdfChunkStore(StringRedisTemplate redis) {
-        this.redis = redis;
+    public PdfChunkStore(StringRedisTemplate redis, ObjectMapper mapper) {
+        this.redis  = redis;
+        this.mapper = mapper;
     }
 
-    public void save(String docId, List<String> chunks) throws JsonProcessingException {
-        String json = new ObjectMapper().writeValueAsString(chunks);
-        redis.opsForValue().set(docId, json, Duration.ofHours(2)); // TTL optional
+    public void save(String docId, List<String> chunks) {
+        try {
+            redis.opsForValue()
+                 .set(docId, mapper.writeValueAsString(chunks), TTL);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize chunks", e);
+        }
     }
 
-    public List<String> load(String docId) throws IOException {
-        String json = redis.opsForValue().get(docId);
-        if (json == null) return Collections.emptyList();
-        return new ObjectMapper().readValue(json, new TypeReference<>() {});
+    public List<String> load(String docId) {
+        try {
+            String json = redis.opsForValue().get(docId);
+            if (json == null) return Collections.emptyList();
+            return mapper.readValue(json, new TypeReference<>() {});
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to deserialize chunks", e);
+        }
     }
 }
