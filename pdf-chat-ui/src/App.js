@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
-const API_BASE = "https://pdf-chatbot-2-tq2q.onrender.com"; // backend base URL
+const API_BASE = "https://pdf-chatbot-api-8kn0.onrender.com"; // backend base URL
 //const API_BASE = "http://localhost/8080";
 
 
