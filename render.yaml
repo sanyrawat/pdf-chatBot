@@ -13,7 +13,7 @@ services:
 ###############################################################################
 - type: web
   name: pdf-chatbot-api
-  runtime: java
+  runtime: docker
   buildCommand: ./mvnw -ntp package -DskipTests
   startCommand: >
     java -jar target/*SNAPSHOT.jar
