@@ -13,8 +13,7 @@ services:
   ##############################################################
   - type: web
     name: pdf-chatbot-api
-    runtime: java
-    repoPath: .               # backend lives in repo root
+    runtime: static
     buildCommand: ./mvnw -ntp package -DskipTests
     startCommand: >
       java -jar target/*SNAPSHOT.jar
@@ -59,7 +58,6 @@ services:
   - type: web
     name: pdf-chat-ui
     runtime: static           # Render’s “Static Site”
-    repoPath: pdf-chat-ui     # directory containing package.json
     buildCommand: npm ci && npm run build
     staticPublishPath: build  # where CRA/Vite/Next exports pre-built files
     pullRequestPreviewsEnabled: false
