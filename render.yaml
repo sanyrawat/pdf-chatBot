@@ -22,24 +22,21 @@ services:
     - key: OPENAI_API_KEY
       sync: false
 
-    # PostgreSQL connection
-    - key: RAW_DB_URL
-      fromDatabase:
-        name: pdf-chat-db
-        property: connectionString
+# ─── Postgres pieces ───
+    - key: DB_HOST
+      fromDatabase: { name: pdf-chat-db, property: host }
 
-    - key: SPRING_DATASOURCE_URL
-      value: "jdbc:${RAW_DB_URL}"
+    - key: DB_PORT
+      fromDatabase: { name: pdf-chat-db, property: port }
 
-    - key: SPRING_DATASOURCE_USERNAME
-      fromDatabase:
-        name: pdf-chat-db
-        property: user
+    - key: DB_NAME
+      fromDatabase: { name: pdf-chat-db, property: database }
 
-    - key: SPRING_DATASOURCE_PASSWORD
-      fromDatabase:
-        name: pdf-chat-db
-        property: password
+    - key: DB_USER
+      fromDatabase: { name: pdf-chat-db, property: user }
+
+    - key: DB_PASSWORD
+      fromDatabase: { name: pdf-chat-db, property: password }
 
 ###############################################################################
 # 3 ▸ React UI
