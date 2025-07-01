@@ -12,7 +12,7 @@ class LogJdbcUrl implements ApplicationRunner {
   public void run(ApplicationArguments args) {
       System.out.println("### JDBC URL AT RUNTIME = " + url);
   }
-  @Bean ApplicationRunner dumpVars() {
+  @Bean ApplicationRunner dumpVars1() {
 	  return args -> {
 	    System.out.println("DB_HOST=" + System.getenv("DB_HOST"));
 	    System.out.println("DB_PORT=" + System.getenv("DB_PORT"));
