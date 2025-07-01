@@ -14,7 +14,7 @@ public class PdfChunkStore {
 
     public void save(String docId, List<String> chunks) {
         UUID docUUID = UUID.fromString(docId);
-        String sql = "INSERT INTO pdf_chunk (doc_id, chunk_idx, text) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO pdf_chunk (document_id, chunk_index, chunk_text) VALUES (?, ?, ?)";
         for (int i = 0; i < chunks.size(); i++) {
             jdbc.update(sql, docUUID, i, chunks.get(i));
         }
@@ -23,7 +23,7 @@ public class PdfChunkStore {
     public List<String> load(String docId) {
         UUID docUUID = UUID.fromString(docId);
         return jdbc.queryForList(
-            "SELECT text FROM pdf_chunk WHERE doc_id = ? ORDER BY chunk_idx",
+            "SELECT chunk_text FROM pdf_chunk WHERE document_id = ? ORDER BY chunk_index",
             String.class, docUUID
         );
     }
