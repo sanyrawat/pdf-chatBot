@@ -23,10 +23,13 @@ services:
       sync: false
 
     # PostgreSQL connection
-    - key: SPRING_DATASOURCE_URL
+    - key: RAW_DB_URL
       fromDatabase:
         name: pdf-chat-db
         property: connectionString
+
+    - key: SPRING_DATASOURCE_URL
+      value: "dbc:${RAW_DB_URL}"
 
     - key: SPRING_DATASOURCE_USERNAME
       fromDatabase:
