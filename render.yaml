@@ -26,7 +26,7 @@ services:
     - key: SPRING_DATASOURCE_URL
       fromDatabase:
         name: pdf-chat-db
-        property: jdbcConnectionString
+        property: connectionString
 
     - key: SPRING_DATASOURCE_USERNAME
       fromDatabase:
